@@ -12,8 +12,7 @@ and follows the same paradigm, using Python type annotations and powered by [Pyd
 from typing import List, Optional
 from typing_extensions import Annotated
 from pymilvus import MilvusClient, DataType
-from pymilvusmodel.index import MilvusIndexParam
-from pymilvusmodel.model import MilvusField, MilvusModel
+from pymilvusmodel import MilvusIndexParam, MilvusField, MilvusModel
 
 
 class ExampleModel(MilvusModel):
