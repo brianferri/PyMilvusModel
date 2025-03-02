@@ -3,7 +3,7 @@ requires = ["setuptools>=75.8.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pymilvusmodel"
+name = "milvusmodel.py"
 version = "0.1.0"
 authors = [{ name = "Brian Ferri", email = "me@brianferri.dev" }]
 description = "SQLModel-like library for Milvus"
