@@ -51,10 +51,6 @@ class MilvusMetadata:
 
     def create_all(self, client: MilvusClient):
         self._client = client
-        addr = self._client._get_connection()._address
-        if not addr: raise ConnectionError("Address was not set.")
-        [host, port] = addr.split(':')
-        connections.connect(host=host, port=port)
         for model_name, metadata in self.collections.items():
             if self._client.has_collection(model_name): continue
             self._client.create_collection(

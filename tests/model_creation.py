@@ -21,6 +21,6 @@ class ExampleModel(MilvusModel):
     ]
 
 
-MILVUS_CLIENT = MilvusClient("http://localhost:19530")
+MILVUS_CLIENT = MilvusClient("test.db")
 MilvusModel.metadata.create_all(MILVUS_CLIENT)
 print(MILVUS_CLIENT.list_collections()) # ['ExampleModel']
