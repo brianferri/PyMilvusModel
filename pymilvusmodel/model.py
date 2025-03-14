@@ -1,7 +1,7 @@
 from enum import Enum
 from pydantic import BaseModel
 from .index import MilvusIndexParam, MilvusIndexParams
-from pymilvus import FieldSchema, CollectionSchema, MilvusClient, connections
+from pymilvus import FieldSchema, CollectionSchema, MilvusClient
 from typing import Annotated, Any, Dict, List, Type, Optional, ClassVar, TypeVar, Union, get_origin, get_args
 
 
