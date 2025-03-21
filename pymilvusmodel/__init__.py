@@ -21,8 +21,8 @@ from .index import (
 )
 
 __all__ = [
-    MilvusModel,
-    MilvusField,
-    MilvusIndexParam,
-    MilvusIndexParams,
+    "MilvusModel",
+    "MilvusField",
+    "MilvusIndexParam",
+    "MilvusIndexParams",
 ]
