@@ -5,7 +5,7 @@ from pymilvusmodel import MilvusIndexParam, MilvusField, MilvusModel
 
 
 class ExampleModel(MilvusModel):
-    indexes: list[MilvusIndexParam] = [
+    indexes: list[MilvusIndexParam] | None = [
         MilvusIndexParam("vector", "IVF_FLAT", "vector_index", metric_type="COSINE", params={
             "nlist": 128
         })
