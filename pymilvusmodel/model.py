@@ -42,7 +42,7 @@ class MilvusMetadata:
                 index.field_name,
                 index.index_type,
                 index.index_name,
-                **index._kwargs
+                **index._configs
             )
 
     def register(self, model: Type['MilvusModel']):
