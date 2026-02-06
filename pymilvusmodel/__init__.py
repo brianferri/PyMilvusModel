@@ -8,7 +8,7 @@ Inspired by [SQLModel](https://sqlmodel.tiangolo.com/), PyMilvusModel:
 and follows the same paradigm, using Python type annotations and powered by [Pydantic](https://docs.pydantic.dev/latest/)
 """
 
-__version__ = "0.2.0-beta"
+__version__ = "0.2.1-beta"
 __author__ = 'Brian Ferri'
 
 from .model import (

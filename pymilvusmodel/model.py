@@ -160,28 +160,49 @@ class MilvusModel(BaseModel):
         Parameters:
             data: An instance or a list of instances of the subclass.
         """
+        def cast_enum(value, enum_type: type[Enum]):
+            if isinstance(value, enum_type):
+                return value
+            try:
+                return enum_type(value)
+            except ValueError:
+                raise ValueError(f"Invalid value '{value}' for enum '{enum_type.__name__}'")
+
         def validate_record(record: T):
             if not isinstance(record, cls):
                 raise TypeError(f"Data must be an instance of {cls.__name__}, got {type(record).__name__}")
-            for field_name, field_value in record.__dict__.items():
-                field_type = type(field_value)
-                if not (isinstance(field_type, type) and issubclass(field_type, Enum)): continue
-                if isinstance(field_value, field_type):
-                    record.__dict__[field_name] = field_value.value
-                elif isinstance(field_value, str):
-                    try:
-                        record.__dict__[field_name] = field_type(field_value).value
-                    except ValueError:
-                        raise ValueError(f"Invalid value '{field_value}' for enum field '{field_name}'")
-                else:
-                    raise TypeError(f"Field '{field_name}' must be of type '{field_type.__name__}' or a valid string.")
+
+            for field_name, annotated_type in cls.__annotations__.items():
+                value = getattr(record, field_name)
+                field_type = get_args(annotated_type)[0]
+                origin = get_origin(field_type)
+                args = get_args(field_type)
+
+                # * Enums are a special kind of type, we handle them
+                # * specifically when validating, casting if necessary
+                if isinstance(field_type, type) and issubclass(field_type, Enum):
+                    setattr(record, field_name, cast_enum(value, field_type))
+
+                elif origin in (list, set):
+                    elem_type = args[0]
+                    if isinstance(elem_type, type) and issubclass(elem_type, Enum):
+                        elem_collection = origin()
+                        for item in value:
+                            if isinstance(elem_collection, set):
+                                elem_collection.add(cast_enum(item, elem_type))
+                            else:
+                                elem_collection.append(cast_enum(item, elem_type))
+                        setattr(record, field_name, elem_collection)
 
         if isinstance(data, cls):
             validate_record(data)
-            data_to_insert = [data.model_dump(exclude=cls._excluded_fields)]
+            # ! We use the `json` mode to help milvus understand what we're sending it
+            # ! since models's may be non-JSON-serializable Python objects
+            # TODO(brianferri): Eventually remove the `json` mode in favor of a more robust validation and serialization
+            data_to_insert = [data.model_dump(mode="json", exclude=cls._excluded_fields)]
         elif isinstance(data, list):
             for record in data: validate_record(record)
-            data_to_insert = [item.model_dump(exclude=cls._excluded_fields) for item in data]
+            data_to_insert = [item.model_dump(mode="json", exclude=cls._excluded_fields) for item in data]
         else:
             raise TypeError("Data must be an instance or a list of instances of the subclass.")
         cls.metadata._client.insert(cls.__name__, data_to_insert, **kwargs)
