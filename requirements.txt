@@ -1,3 +1,0 @@
-pydantic==2.9.2
-pydantic-core==2.23.4
-pymilvus==2.5.4

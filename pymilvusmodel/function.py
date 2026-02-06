@@ -1,13 +1,12 @@
+from pymilvus import Function
+from pydantic_core import core_schema
 from typing import Any, Dict, List, Type
 from pydantic import GetCoreSchemaHandler
-from pydantic_core import core_schema
-from pymilvus.milvus_client import IndexParams
-from pymilvus.milvus_client.index import IndexParam
 
-class MilvusIndexParam(IndexParam):
+class MilvusFunction(Function):
     @classmethod
-    def __get_pydantic_core_schema__(cls, source: Type['MilvusIndexParam'], _: GetCoreSchemaHandler) -> core_schema.CoreSchema:
-        assert source is MilvusIndexParam
+    def __get_pydantic_core_schema__(cls, source: Type['MilvusFunction'], _: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+        assert source is MilvusFunction
         return core_schema.no_info_after_validator_function(
             cls._validate,
             core_schema.dict_schema(),
@@ -19,18 +18,18 @@ class MilvusIndexParam(IndexParam):
         )
 
     @staticmethod
-    def _validate(value: Dict[str, Any]) -> 'MilvusIndexParam':
-        return MilvusIndexParam(**value)
+    def _validate(value: Dict[str, Any]) -> 'MilvusFunction':
+        return MilvusFunction(**value)
 
     @staticmethod
-    def _serialize(value: 'MilvusIndexParam') -> Dict[str, Any]:
+    def _serialize(value: 'MilvusFunction') -> Dict[str, Any]:
         return value.to_dict()
 
 
-class MilvusIndexParams(IndexParams):
+class MilvusFunctions(List[MilvusFunction]):
     @classmethod
-    def __get_pydantic_core_schema__(cls, source: Type['MilvusIndexParams'], _: GetCoreSchemaHandler) -> core_schema.CoreSchema:
-        assert source is MilvusIndexParams
+    def __get_pydantic_core_schema__(cls, source: Type['MilvusFunctions'], _: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+        assert source is MilvusFunctions
         return core_schema.no_info_after_validator_function(
             cls._validate,
             core_schema.list_schema(core_schema.dict_schema()),
@@ -42,12 +41,15 @@ class MilvusIndexParams(IndexParams):
         )
 
     @staticmethod
-    def _validate(value: List[Dict[str, Any]]) -> 'MilvusIndexParams':
-        instance = MilvusIndexParams()
+    def _validate(value: List[Dict[str, Any]]) -> 'MilvusFunctions':
+        instance = MilvusFunctions()
         for item in value:
-            instance.add_index(**item)
+            instance.add_function(**item)
         return instance
 
     @staticmethod
-    def _serialize(value: 'MilvusIndexParams') -> List[Dict[str, Any]]:
+    def _serialize(value: 'MilvusFunctions') -> List[MilvusFunction]:
         return list(value)
+
+    def add_function(self, function: MilvusFunction):
+        super().append(function)

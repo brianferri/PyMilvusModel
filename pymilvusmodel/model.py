@@ -1,8 +1,22 @@
 from enum import Enum
 from pydantic import BaseModel
+from .function import MilvusFunction, MilvusFunctions
 from .index import MilvusIndexParam, MilvusIndexParams
 from pymilvus import FieldSchema, CollectionSchema, MilvusClient
-from typing import Annotated, Any, Dict, List, Type, Optional, ClassVar, TypeVar, Union, get_origin, get_args
+from typing import (
+    Any,
+    Set,
+    Dict,
+    List,
+    Type,
+    Union,
+    TypeVar,
+    ClassVar,
+    Optional,
+    get_args,
+    Annotated,
+    get_origin,
+)
 
 
 
@@ -26,6 +40,7 @@ class MilvusCollectionMetadata(BaseModel):
     """
     cls: Type['MilvusModel']
     indexes: MilvusIndexParams = MilvusIndexParams()
+    functions: MilvusFunctions = MilvusFunctions()
 
 class MilvusMetadata:
     """
@@ -44,6 +59,14 @@ class MilvusMetadata:
                 index.index_name,
                 **index._configs
             )
+
+    def __add_functions__(self, model: Type['MilvusModel'], functions: List[MilvusFunction]):
+        if model.__name__ not in self.collections:
+            self.collections[model.__name__] = MilvusCollectionMetadata(cls=model)
+        for function in functions:
+            self.collections[model.__name__].functions.add_function(function)
+            for output_field in function.output_field_names:
+                model._excluded_fields.add(output_field)
 
     def register(self, model: Type['MilvusModel']):
         if model.__name__ not in self.collections:
@@ -83,35 +106,51 @@ class MilvusModel(BaseModel):
     """
     metadata: ClassVar[MilvusMetadata] = MilvusMetadata()
     _collection_schema: ClassVar[Optional[CollectionSchema]] = None
-    _auto_id_fields: ClassVar[set] = set()
+    _excluded_fields: ClassVar[Set[str]] = set()
+    """Fields excluded from insert opertations"""
+
+    auto_id: Optional[bool] = None
+    enable_dynamic_field: Optional[bool] = None
+    description: Optional[str] = None
 
     indexes: Optional[List[MilvusIndexParam]] = None
+    functions: Optional[List[MilvusFunction]] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
+
+        cls._excluded_fields.update({
+            name for name, _ in MilvusModel.__annotations__.items()
+        })
+
         fields = []
-        auto_id_fields = set()
         for attr_name, attr_type in cls.__annotations__.items():
             if attr_name == "indexes" and cls.indexes is not None:
-                cls._auto_id_fields.add("indexes")
-                MilvusModel.metadata.__add_indexes__(cls, cls.indexes); continue
+                MilvusModel.metadata.__add_indexes__(cls, cls.indexes)
+                continue
+            if attr_name == "functions" and cls.functions is not None:
+                MilvusModel.metadata.__add_functions__(cls, cls.functions)
+                continue
+
             if not get_origin(attr_type) is Annotated:
                 raise TypeError("MilvusModel types should be annotated with a MilvusField")
-            field_schema = get_args(attr_type)[1]
-            if not isinstance(field_schema, FieldSchema):
+
+            _, field_schema = get_args(attr_type)
+            if not isinstance(field_schema, MilvusField):
                 raise TypeError("MilvusModel annotated types must be MilvusFields")
             fields.append(field_schema)
+
             if field_schema.auto_id:
-                auto_id_fields.add(attr_name)
+                cls._excluded_fields.add(attr_name)
 
         cls._collection_schema = CollectionSchema(
             fields=fields,
             auto_id=getattr(cls, "auto_id", False),
             enable_dynamic_field=getattr(cls, "enable_dynamic_field", False),
-            description=getattr(cls, "description", '')
+            description=getattr(cls, "description", ''),
+            functions=getattr(cls, "functions", [])
         )
         MilvusModel.metadata.register(cls)
-        cls._auto_id_fields.update(auto_id_fields)
 
     @classmethod
     def insert(cls: Type[T], data: Union[T, List[T]], **kwargs):
@@ -139,10 +178,10 @@ class MilvusModel(BaseModel):
 
         if isinstance(data, cls):
             validate_record(data)
-            data_to_insert = [data.model_dump(exclude=cls._auto_id_fields)]
+            data_to_insert = [data.model_dump(exclude=cls._excluded_fields)]
         elif isinstance(data, list):
             for record in data: validate_record(record)
-            data_to_insert = [item.model_dump(exclude=cls._auto_id_fields) for item in data]
+            data_to_insert = [item.model_dump(exclude=cls._excluded_fields) for item in data]
         else:
             raise TypeError("Data must be an instance or a list of instances of the subclass.")
         cls.metadata._client.insert(cls.__name__, data_to_insert, **kwargs)
@@ -159,7 +198,7 @@ class MilvusModel(BaseModel):
         """
         Delete rows
 
-        https://milvus.io/api-reference/pymilvus/v2.5.x/MilvusClient/Vector/delete.md
+        https://milvus.io/api-reference/pymilvus/v2.6.x/MilvusClient/Vector/delete.md
         """
         return cls.metadata._client.delete(cls.__name__, ids, timeout, filter, partition_name, **kwargs)
 
@@ -168,7 +207,7 @@ class MilvusModel(BaseModel):
         """
         Get entities by ID
 
-        https://milvus.io/api-reference/pymilvus/v2.5.x/MilvusClient/Vector/get.md
+        https://milvus.io/api-reference/pymilvus/v2.6.x/MilvusClient/Vector/get.md
         """
         return [cls(**vector) for vector in cls.metadata._client.get(cls.__name__, ids, output_fields, **kwargs)]
 
@@ -177,6 +216,6 @@ class MilvusModel(BaseModel):
         """
         Scalar filtering with a specified boolean expression
 
-        https://milvus.io/api-reference/pymilvus/v2.5.x/MilvusClient/Vector/query.md
+        https://milvus.io/api-reference/pymilvus/v2.6.x/MilvusClient/Vector/query.md
         """
         return [cls(**vector) for vector in cls.metadata._client.query(cls.__name__, filter, **kwargs)]
