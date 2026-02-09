@@ -13,11 +13,15 @@ __author__ = 'Brian Ferri'
 
 from .model import (
     MilvusModel,
-    MilvusField
+    MilvusField,
 )
 from .index import (
     MilvusIndexParam,
-    MilvusIndexParams
+    MilvusIndexParams,
+)
+from .function import (
+    MilvusFunction,
+    MilvusFunctions,
 )
 
 __all__ = [
@@ -25,4 +29,6 @@ __all__ = [
     "MilvusField",
     "MilvusIndexParam",
     "MilvusIndexParams",
+    "MilvusFunction",
+    "MilvusFunctions",
 ]
