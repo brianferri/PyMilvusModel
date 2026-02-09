@@ -197,7 +197,7 @@ class MilvusModel(BaseModel):
         if isinstance(data, cls):
             validate_record(data)
             # ! We use the `json` mode to help milvus understand what we're sending it
-            # ! since models's may be non-JSON-serializable Python objects
+            # ! since models may be non-JSON-serializable Python objects
             # TODO(brianferri): Eventually remove the `json` mode in favor of a more robust validation and serialization
             data_to_insert = [data.model_dump(mode="json", exclude=cls._excluded_fields)]
         elif isinstance(data, list):
